@@ -27,8 +27,9 @@ typedef struct Chip8 {
     unsigned char memory[4096];
 
     /*
-     * A register is a memory container
+     * A register is a small storage location used to hold data
      * The chip8 has: 15 general porpuse registers (eachone long 8bit) named V0 through VE
+     * VF is used as a flag register.
      */
     unsigned char V[16];
 
