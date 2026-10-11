@@ -40,7 +40,7 @@ Chip8* chip8Init(void){
      */
     Chip8* chip8 = malloc(sizeof(Chip8));
     if (chip8 == NULL){
-        fprintf(stderr, "[ERROR]: Memory can't be allocated\n");
+        LOG_ERROR("Memory can't be allocated");
         exit(EXIT_FAILURE);
     }
 
@@ -91,7 +91,7 @@ void chip8LoadProgram(Chip8 *chip8, char* program){
      */
     FILE *f = fopen(program, "rb"); // read binary, we are reading every single byte
     if (f == NULL){
-        fprintf(stderr, "[ERROR]: Failed to open the ROM\n");
+        LOG_ERROR("Failed to open the ROM");
         exit(EXIT_FAILURE);
     }
 
@@ -115,7 +115,7 @@ void chip8LoadProgram(Chip8 *chip8, char* program){
      * <= is used because ftell() could return -1 on error
      */
     if ((fSize <= 0) || (fSize > (0x1000 - 0x200))){ 
-        fprintf(stderr, "[ERROR]: Operation Failed: ROM size too large: %ld bytes, the file must be less than or equal to 3584 bytes\n", fSize);
+        LOG_ERROR_ARGS("Operation Failed: ROM size too large: %ld bytes, the file must be less than or equal to 3584 bytes", fSize);
         fclose(f);
         exit(EXIT_FAILURE);
     }
@@ -138,7 +138,7 @@ void chip8LoadProgram(Chip8 *chip8, char* program){
      * In other words, we're checking whether all bytes have been successfully read
      */
     if (result != (size_t)fSize){
-        fprintf(stderr, "[ERROR]: Operation Failed: can't read program bytes\n");
+        LOG_ERROR("Operation Failed: can't read program bytes");
         fclose(f);
         exit(EXIT_FAILURE);
      }

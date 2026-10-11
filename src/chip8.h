@@ -78,7 +78,8 @@ typedef struct Chip8 {
 /*
  * This enum maps descriptive labels to a sequence of numbers.
  * This way, instead of remembering the numeric value of a pressed key, we can simply refer to its descriptive label.
- * It is only necessary to initialize the first value, as the subsequent fields are automatically incremented by 1 (CHIP8_KEY_2 will be 1, etc)
+ * It is only necessary to initialize the first value, as the subsequent fields are automatically incremented by 1
+ * (CHIP8_KEY_2 will be 1, etc)
  */
 typedef enum {
     CHIP8_KEY_1 = 0,
@@ -98,6 +99,44 @@ typedef enum {
     CHIP8_KEY_C,
     CHIP8_KEY_V 
 } CHIP8_KEY;
+
+/*
+ * A macro is a preprocessor directive that is replaced with text before compilation.
+ * The trailing '\' indicates a line continuation, allowing a multi-line definition 
+ * to be treated as a single logical line.
+ * The do-while(0) wrapper makes the macro safe to use inside if-else statements.
+ * Without it, a trailing semicolon would prematurely terminate the 'if' 
+ * block, causing a compilation error if followed by an 'else'.
+ * It also encapsulates multiple instructions into a single, safe statement.
+ * Adjacent string literals are automatically concatenated by the compiler 
+ * (this only applies to string literals, not to char variables)
+ */
+#define LOG_INFO(msg)                           \
+    do{                                         \
+        fprintf(stdout, "[INFO]:" msg "\n");    \
+    } while(0)
+
+/*
+ * A variadic macro is a macro that can accept a variable number of arguments.
+ * The ellipsis ... is used to indicate an undefined number of arguments.
+ * The ##__VA_ARGS__ identifier is used to substitute all the passed arguments.
+ * The '##' removes the preceding comma if no extra arguments are passed.
+ */
+#define LOG_INFO_ARGS(msg, ...)                                 \
+    do{                                                         \
+        fprintf(stdout, "[INFO]:" msg "\n", ##__VA_ARGS__);     \
+    } while(0)
+
+
+#define LOG_ERROR(msg)                                          \
+    do{                                                         \
+        fprintf(stderr, "\033[0;31m[ERROR]:" msg "\033[0m\n");  \
+    } while(0)
+
+#define LOG_ERROR_ARGS(msg, ...)                                                \
+    do{                                                                         \
+        fprintf(stderr, "\033[0;31m[ERROR]:" msg "\033[0m\n", ##__VA_ARGS__);   \
+    } while(0)
 
 
 // Allocate the memory and return emulator' struct

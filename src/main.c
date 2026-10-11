@@ -13,7 +13,7 @@ int main(int argc, char **argv){
 
     // We need at least two command-line arguments: program name and ROM
     if (argc < 2) {
-        printf("[ERROR] Missing arguments. Try: %s <CHIP-8 ROM>\n", argv[0]);
+        LOG_ERROR_ARGS("Missing arguments. Try: %s <CHIP-8 ROM>", argv[0]);
         return EXIT_FAILURE;
     }
 
@@ -23,10 +23,10 @@ int main(int argc, char **argv){
     
     // --- Initialization
     Chip8 *chip8 = chip8Init();
-    fprintf(stdout, "[INFO]: Allocated CHIP-8 at 0x%p\n", (void*)chip8);
+    LOG_INFO_ARGS("Allocated CHIP-8 at 0x%p", (void*)chip8);
 
     chip8LoadProgram(chip8, rom);
-    fprintf(stdout, "[INFO]: Loading ROM <%s>\n", rom);
+    LOG_INFO_ARGS("\033[0;32mLoading ROM\033[0m <%s>", rom);
 
     // --- Emulation Loop
 
