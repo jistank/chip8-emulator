@@ -48,7 +48,7 @@ typedef struct Chip8 {
      */
     unsigned char gfx[64*32];
     
-    // binary flag to draw or not, this to know if the schreen shoul be updated
+    // binary flag to draw or not, this to know if the schreen should be updated
     unsigned char draw;
 
     /*

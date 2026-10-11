@@ -19,13 +19,19 @@ int main(int argc, char **argv){
 
     // Take the ROM we've decided to load and print it
     char *rom = argv[1];
-    printf("Loading ROM: '%s'\n", rom);
+    printf("ROM selected: '%s'\n", rom);
     
     // --- Initialization
+    Chip8 *chip8 = chip8Init();
+    fprintf(stdout, "[INFO]: Allocated CHIP-8 at 0x%p\n", (void*)chip8);
+
+    chip8LoadProgram(chip8, rom);
+    fprintf(stdout, "[INFO]: Loading ROM <%s>\n", rom);
 
     // --- Emulation Loop
 
     // --- Cleanup
+    chip8Destroy(chip8);    
 
     return 0;
 }
