@@ -100,6 +100,29 @@ typedef enum {
     CHIP8_KEY_V 
 } CHIP8_KEY;
 
+/**
+ * CHIP-8 opcodes are exactly 2 bytes long and stored in big-endian format
+ * This macro reads the byte at the current Program Counter as the most 
+ * significant byte (shifted left by 8 bits) and combines it with the following 
+ * byte (the least significant byte) using a bitwise OR operation.
+ *
+ *   Example: If memory[pc] = 0x12 and memory[pc+1] = 0x34
+ * 
+ *   Step 1: Shift first byte left by 8 bits
+ *   0x0012 << 8  =  0x1200, (1) 0001, (2) 0010  (binary: 0001 0010 0000 0000) 
+ * 
+ *   Step 2: Combine with the second byte using bitwise OR.
+ *     0x1200       (binary: 0001 0010 0000 0000)
+ *   | 0x0034       (binary: 0000 0000 0011 0100)
+ *     -------------------------------------------
+ *     0x1234       (binary: 0001 0010 0011 0100)
+ *
+ */
+#define FETCH_OPCODE(chip8) (                               \
+    ((unsigned short)((chip8)->memory[(chip8)->pc] << 8)) | \
+    ((unsigned short)((chip8)->memory[(chip8)->pc + 1]))    \
+)
+
 /*
  * A macro is a preprocessor directive that is replaced with text before compilation.
  * The trailing '\' indicates a line continuation, allowing a multi-line definition 
@@ -147,6 +170,8 @@ void chip8Destroy(Chip8*);
 
 // Load the program
 void chip8LoadProgram(Chip8*, char*);
+
+void chip8Step(Chip8*);
 
 // Execute the opcode
 void chip8ExecuteOpcode(Chip8*, short);

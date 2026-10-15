@@ -29,6 +29,7 @@ int main(int argc, char **argv){
     LOG_INFO_ARGS("\033[0;32mLoading ROM\033[0m <%s>", rom);
 
     // --- Emulation Loop
+    chip8Step(chip8);
 
     // --- Cleanup
     chip8Destroy(chip8);    

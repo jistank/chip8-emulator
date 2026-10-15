@@ -146,21 +146,114 @@ void chip8LoadProgram(Chip8 *chip8, char* program){
     fclose(f);
 }
 
-// Execute the opcode
-void chip8ExecuteOpcode(Chip8 *chip8, short opcode){
-    return;
+/* 
+ * This function handles the "Fetch" and "PC advancement" phases of the 
+ * Fetch-Decode-Execute cycle.
+ */
+void chip8Step(Chip8 *chip8){
+
+    // Ensure the Program Counter (PC) is within the valid 4KB memory bounds.
+    if (chip8->pc >= 4095){
+
+        /*
+         * 0x%03X is a format specifier: prints the number in uppercase (X) hexadecimal format
+         * 03: pad with zeros on the left until a length of at least 3 characters is reached
+         *
+         * ex: if the number (in decimal) is: 10, in Hex is: A. With %03X becomes: 00A
+         */
+        LOG_ERROR_ARGS("Impossible increment PC: 0x%03X", chip8->pc);
+        exit(EXIT_FAILURE);
+    }
+
+    /*
+     * FETCH the 16-bit (2-byte) opcode from memory at the current program counter address.
+     * The opcode contains both:
+     *   - The instruction itself (ex: ADD, JP, DRAW)
+     *   - The operands (ex: register indices, immediate values, or memory addresses)
+     */
+    unsigned short opcode = FETCH_OPCODE(chip8);
+    chip8->opcode = opcode;
+
+    /*
+     * Increment the program counter by 2 bytes to point to the next instruction.
+     * Note: FETCH_OPCODE already used the previous PC value to get the current opcode.
+     */
+    chip8->pc += 2;
+    
+    // DECODE & EXECUTE: Pass the fetched opcode to the execution dispatcher
+    chip8ExecuteOpcode(chip8, opcode);
 }
 
+// Decodes and executes a given 16-bit CHIP-8 opcode.
+void chip8ExecuteOpcode(Chip8 *chip8, short opcode){
 
+    /*
+     * DECODE: Extract the components of the 16-bit opcode using bitwise AND
+     * and right shift operations.
+     */
+    unsigned char X   = (opcode & 0x0F00) >> 8;
+    unsigned char Y   = (opcode & 0x00F0) >> 4;
+    unsigned char N   = opcode & 0x000F;
+    unsigned char NN  = opcode & 0x00FF;
+    unsigned char NNN = opcode & 0x0FFF;
+    
+    // Cast void to disable warning by compiler, otherwise it complains about unused variables
+    (void)X;
+    (void)Y;
+    (void)N;
+    (void)NN;
+    (void)NNN;
 
+    // compile the program with DEBUG=1 (ex: make DEBUG=1) to see the debug log
+    #ifdef DEBUG
+        LOG_INFO_ARGS("[0x%03X] Executing 0x%04X", chip8->pc -2, opcode);
+    #endif
 
+    /*
+     * EXECUTE: Dispatch to the correct instruction handler based on the most 
+     * significant 4 bits (the first hexadecimal digit) of the opcode.
+     */
+    switch ((opcode & 0x0F00) >> 12){
+        case 0x0: {
+        } break;
+        case 0x1: {
+        } break;
+        case 0x2: {
+        } break;
+        case 0x3: {
+        } break;
+        case 0x4: {
+        } break;
+        case 0x5: {
+        } break;
+        case 0x6: {
+        } break;
+        case 0x7: {
+        } break;
+        case 0x8: {
+        } break;
+        case 0x9: {
+        } break;
+        case 0xA: {
+        } break;
+        case 0xB: {
+        } break;
+        case 0xC: {
+        } break;
+        case 0xD: {
+        } break;
+        case 0xE: {
+        } break;
+        case 0xF: {
+        } break;
+        default:{
+            LOG_ERROR("Unreachable default case in chip8ExecuteOpcode");
+            exit(EXIT_FAILURE);
+        } break;
+    }
+    return;
 
-
-
-
-
-
-
+}
 
 
 
