@@ -10,6 +10,9 @@
 #ifndef CHIP8_H_ 
 #define CHIP8_H_
 
+#define CHIP8_WIDTH 64
+#define CHIP8_HIGHT 32
+
 typedef struct Chip8 {
 
     // This flag tell to us if chip8 is running
@@ -46,7 +49,7 @@ typedef struct Chip8 {
      * Frame buffer containing pixel data to drow on the schreen (contains totally 2048px)
      * The graphics is black and white
      */
-    unsigned char gfx[64*32];
+    unsigned char gfx[CHIP8_WIDTH * CHIP8_HIGHT];
     
     // binary flag to draw or not, this to know if the schreen should be updated
     unsigned char draw;

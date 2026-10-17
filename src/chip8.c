@@ -215,21 +215,122 @@ void chip8ExecuteOpcode(Chip8 *chip8, short opcode){
      */
     switch ((opcode & 0x0F00) >> 12){
         case 0x0: {
+            // 00E0, clear the screen
+            // if the last digit is 0 we execute this instruction
+            if ((opcode & 0x000F) == 0x0000){
+                 // Clear the graphics buffer by setting all bytes to 0 (2048 bytes)
+                memset(chip8->gfx, 0, CHIP8_WIDTH*CHIP8_HIGHT);
+            }
+
+            // 00EE, Return from a subroutine
+            else if ((opcode & 0x00FF) == 0x00EE){
+                // Decrement SP before reading the stack, to not read the wrong address.
+                chip8->sp--;
+                // Restore the program counter to the return address previously 
+                // saved at the top of the stack by the 2NNN instruction.
+                chip8->pc = chip8->stack[chip8->sp];
+
+            /*
+             * 0NNN: Call machine code routine at address NNN.
+             * This is rarely used in modern CHIP-8 ROMs. We log it for debugging 
+             * purposes but do not execute actual machine code in this emulator.
+             */
+            } else {
+                LOG_INFO("Executing 0NNN");
+            }
         } break;
+
+        // 1NNN, Jump to address NNN
         case 0x1: {
+            chip8->pc = NNN;
         } break;
+
+        // 2NNN, Execute subroutine starting at address NNN
         case 0x2: {
+
+            /*
+             * Save the current PC (return address) to the stack before jumping
+             * First, ensure there is enough space in the stack (max 16 nested calls)
+             */
+            if (chip8->sp == 16){
+                LOG_ERROR("Call stack overflow");
+                exit(EXIT_FAILURE);
+            }
+
+            // Save the return address and increment the stack pointer.
+            chip8->stack[chip8->sp] = chip8->pc;
+            chip8->sp++;
+
+           /*
+            * Jump to the new subroutine address.
+            * changing the program counter to NNN address
+            */
+            chip8->pc = NNN;
         } break;
+
+        // 3XNN, skip the following instruction if the value of register VX equals NN
         case 0x3: {
+
+            // Ensure X is a valid register index (0-15) before accessing the array.
+            if (X >= 16){
+                LOG_ERROR_ARGS("3XNN, invalid value for X: %d > 15", X);
+                exit(EXIT_FAILURE);
+            }
+
+            // If the register value equals NN, skip the next 2-byte instruction.
+            // (because every instruction occupies 2 byte)
+            if (chip8->V[X] == NN){
+                chip8->pc += 2;
+            }
         } break;
+
+        // 4XNN, skip the following instruction if the value of register VX is not equal to NN
         case 0x4: {
+            if (X >= 16){
+                LOG_ERROR_ARGS("4XNN, invalid value for X: %d > 15", X);
+                exit(EXIT_FAILURE);
+            }
+
+            if (chip8->V[X] != NN){
+                chip8->pc += 2;
+            }
         } break;
+
+        // 5XY0, skip the following instruction if the value of register VX is equal to the value of register VY
         case 0x5: {
+            if (X >= 16){
+                LOG_ERROR_ARGS("5XY0, invalid value for X: %d > 15", X);
+                exit(EXIT_FAILURE);
+            }
+
+            if (Y >= 16){
+                LOG_ERROR_ARGS("5XY0, invalid value for Y: %d > 15", Y);
+                exit(EXIT_FAILURE);
+            }
+
+            if (chip8->V[X] == chip8->V[Y]){
+                chip8->pc += 2;
+            }
         } break;
+
+        // 6XNN, store number NN in register VX
         case 0x6: {
+            if (X >= 16){
+                LOG_ERROR_ARGS("6XNN, invalid value for X: %d > 15", X);
+                exit(EXIT_FAILURE);
+            }
+            chip8->V[X] = NN;
         } break;
+
+        // 7XNN, Add the value NN to register VX
         case 0x7: {
+             if (X >= 16){
+                LOG_ERROR_ARGS("7XNN, invalid value for X: %d > 15", X);
+                exit(EXIT_FAILURE);
+            }
+            chip8->V[X] += NN;
         } break;
+
         case 0x8: {
         } break;
         case 0x9: {
