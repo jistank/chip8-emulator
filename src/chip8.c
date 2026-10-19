@@ -332,7 +332,122 @@ void chip8ExecuteOpcode(Chip8 *chip8, short opcode){
         } break;
 
         case 0x8: {
+             if (X >= 16){
+                // *: represents all instructions with the 0x8 prefix
+                LOG_ERROR_ARGS("0x8*, invalid value for X: %d > 15", X);
+                exit(EXIT_FAILURE);
+            }
+                
+             if (Y >= 16){
+                LOG_ERROR_ARGS("0x8*, invalid value for Y: %d > 15", Y);
+                exit(EXIT_FAILURE);
+            }
+
+            // 8XY0, Store the value of register VY in register VX
+            if ((opcode & 0x000F) == 0x0000){
+                chip8->V[X] = chip8->V[Y];
+            }
+
+            // 8XY1, Set VX to VX OR VY
+            else if ((opcode & 0x000F) == 0x0001) {
+                chip8->V[X] |= chip8->V[Y];      
+            }
+
+            // 8XY2, Set VX to VX AND VY
+            else if ((opcode & 0x000F) == 0x0002) {
+                chip8->V[X] &= chip8->V[Y];            
+            }
+
+            // 8XY3, Set VX to VX XOR VY
+            else if ((opcode & 0x000F) == 0x0003) {
+                chip8->V[X] ^= chip8->V[Y];        
+            }
+
+            /* 8XY4
+             *  1. Add the value of register VY to register VX
+             *  2. Set VF to 01 if a carry occurs
+             *  3. Set VF to 00 if a carry does not occur
+             */
+            else if ((opcode & 0x000F) == 0x0004) {
+                /*
+                 * Since a register holds an 8-bit value (maximum 255),
+                 * if the sum of V[X] and V[Y] > 255, we have a carry
+                 */
+                unsigned char carry = (chip8->V[X] + chip8->V[Y] > 255) ? 1 : 0;
+                chip8->V[X] += chip8->V[Y];
+                // VF is the flag register: set it to 1 if there was a carry, else 0
+                chip8->V[15] = carry;
+            }
+
+            /* 8XY5
+             * 1. Subtract the value of register VY from register VX
+             * 2. Set VF to 00 if a borrow occurs
+             * 3. Set VF to 01 if a borrow does not occur
+             */
+            else if ((opcode & 0x000F) == 0x0005) {
+
+              // A borrow occurs only if VX < VY.
+              // In all other cases, no borrow occurs, and we can set VF to 1.
+              unsigned char notBorrow = chip8->V[X] >= chip8->V[Y] ? 1 : 0;
+
+                /*
+                 * Be careful with the order of operations here.
+                 * First, we compute the flag, then we update VX,
+                 * and we finally assign the flag.
+                 * This correctly handles the case where X = 15
+                 */ 
+              chip8->V[X] = chip8->V[X] - chip8->V[Y];
+              chip8->V[15] = notBorrow;
+            }
+
+            /* 8XY6
+             * 1. Store the value of register VY shifted right one bit in
+             * register VX
+             * 2. Set register VF to the least significant bit prior to the
+             * shift. VY is unchanged
+             */
+            else if ((opcode & 0x000F) == 0x0006) {
+              // TODO: add quirk support
+              
+              // lsb stands for: least significant bit
+              unsigned char lsb = chip8->V[Y] & 0x1;
+              chip8->V[X] = chip8->V[Y] >> 1;
+              chip8->V[15] = lsb;
+            } 
+
+            /* 8XY7
+             * 1. Set register VX to the value of VY minus VX
+             * 2. Set VF to 00 if a borrow occurs
+             * 3. Set VF to 01 if a borrow does not occur
+            */
+            else if ((opcode & 0x000F) == 0x0007) {
+              unsigned char notBorrow = chip8->V[Y] >= chip8->V[X] ? 1 : 0;
+              chip8->V[X] = chip8->V[Y] - chip8->V[X];
+              chip8->V[15] = notBorrow;
+            }
+
+            /* 8XYE
+             * 1. Store the value of register VY shifted left one bit in register VX
+             * 2. Set register VF to the most significant bit prior to the shift.
+             *    VY is unchanged
+            */
+            else if ((opcode & 0x000F) == 0x000E) {
+              // TODO: add quirk support
+              
+              unsigned char msb = (chip8->V[Y] & 0x80) >> 7;
+              chip8->V[X] = chip8->V[Y] << 1;
+              chip8->V[15] = msb;
+            }        
+
+            else {
+              LOG_ERROR_ARGS("Unknown opcode '0x%x'", opcode);
+              exit(1);
+            }
+
+
+
         } break;
+
         case 0x9: {
         } break;
         case 0xA: {
