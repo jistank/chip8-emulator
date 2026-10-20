@@ -125,8 +125,9 @@ void chip8LoadProgram(Chip8 *chip8, char* program){
 
     /*
      * 1st param: Pointer to the memory block where data is read.
-     *      We read into memory after the byte 0x200 (the 512th byte)
-     *      because the first 512 bytes are occupied, so the pointer offset is the memory start + 0x200
+     *            We read into memory after the byte 0x200 (the 512th byte)
+     *            because the first 512 bytes are occupied,
+     *            so the pointer offset is the memory start + 0x200
      * 2nd param: Size of each element to read (1 byte at a time)
      * 3rd param: Number of elements to read (file size)
      * 4th param: Pointer to the FILE stream (the file itself)
@@ -197,7 +198,8 @@ void chip8ExecuteOpcode(Chip8 *chip8, short opcode){
     unsigned char NN  = opcode & 0x00FF;
     unsigned char NNN = opcode & 0x0FFF;
     
-    // Cast void to disable warning by compiler, otherwise it complains about unused variables
+    // Cast void to disable warning by compiler,
+    // otherwise it complains about unused variables
     (void)X;
     (void)Y;
     (void)N;
@@ -441,25 +443,85 @@ void chip8ExecuteOpcode(Chip8 *chip8, short opcode){
 
             else {
               LOG_ERROR_ARGS("Unknown opcode '0x%x'", opcode);
-              exit(1);
+              exit(EXIT_FAILURE);
             }
-
-
-
         } break;
 
+        /*
+         * Skips the next instruction if VX does not equal VY.
+         * This is achieved by increasing the PC by 2.
+         */
         case 0x9: {
+            if (chip8->V[X] != chip8->V[Y])
+                chip8->pc += 2;
         } break;
+                  
+        // Sets I to the address NNN
         case 0xA: {
+            chip8->I = NNN;
         } break;
+
+        // Jumps to the address NNN plus V0
         case 0xB: {
+            chip8->pc = NNN + chip8->V[0];
         } break;
+
+        /* 
+         * Sets VX to the result of a bitwise and operation on a random number 
+         * (Typically: 0 to 255) and NN.
+         */
         case 0xC: {
+            /*
+             * rand(): generate random number (of 32-bit)
+             * (rand() & 0xFF): with this bitmask extracts the 8 least significant bits
+             * all other bits are set to 0, which is equivalent to generating 8 random bits.
+             * But we want to mask this random value with NN (so we do another AND bit to bit)
+             */
+            chip8->V[X] = (unsigned char)((rand() & 0xFF) & NN);
         } break;
+
+        /*
+         * Draws a sprite at coordinate (VX, VY) that has a width of 8 pixels and a height of N pixels.
+         * Each row of 8 pixels is read as bit-coded starting from memory location I;
+         * The "I" value does not change after the execution of this instruction.
+         * As described above, VF is set to 1 if any screen pixels are flipped from set
+         * to unset when the sprite is drawn, and to 0 if that does not happen
+         */ 
         case 0xD: {
         } break;
+
         case 0xE: {
+            /*
+             * Skips the next instruction if the key stored in VX (only consider the lowest nibble)
+             * is pressed (usually the next instruction is a jump to skip a code block).
+             */
+                if ((opcode & 0x00FF) == 0x009E){
+                    // taking the last 4-bits of the register V[X]
+                    unsigned char key_index = chip8->V[X] & 0x0F;
+                    if (chip8->key[key_index] == 1){
+                        chip8->pc += 2;
+                    }
+                }
+
+                /*
+                 * Skips the next instruction if the key stored in VX (only consider the lowest nibble)
+                 * is not pressed (usually the next instruction is a jump to skip a code block).
+                 */
+                else if ((opcode & 0x00FF) == 0x00A1){
+                    unsigned char key_index = chip8->V[X] & 0x0F;
+                    if (chip8->key[key_index] == 0){
+                        chip8->pc += 2;
+                    }
+                }
+
+                else {
+                    LOG_ERROR_ARGS("Unknown opcode: '0x%x'\n", opcode);
+                    exit(EXIT_FAILURE);
+                }
+
         } break;
+
+
         case 0xF: {
         } break;
         default:{
