@@ -488,6 +488,65 @@ void chip8ExecuteOpcode(Chip8 *chip8, short opcode){
          * to unset when the sprite is drawn, and to 0 if that does not happen
          */ 
         case 0xD: {
+            unsigned char x = chip8->V[X];
+            unsigned char y = chip8->V[Y];
+
+            /*
+             * To draw the sprite we need to know:
+             *     1. Starting location (x, y), obtained from opcode (registers VX and VY)
+             *     2. Number of columns, fixed at 8 (1 byte)
+             *     3. Number of rows, obtained from opcode
+             *     4. Memory to load from, obtained from register I
+             *
+             *
+             * A sprite is a block of bytes in memory
+             * Each row consists of 8 bits, and the sprite has a variable number of rows
+             * The number of rows depends on N which is given by the opcode
+             * (the number of columns is constant)
+             * The position (x, y) are given by the opcode as well.
+             *
+             * SPRITE VISUALIZATION:
+             *      |_|_|_|_|_|_|_|_|    row1 = (N=1)
+             *      |_|_|_|_|_|_|_|_|    row2 = (N=2)
+             *      |_|_|_|_|_|_|_|_|
+             *      |_|_|_|_|_|_|_|_|
+             *      |_|_|_|_|_|_|_|_|
+             *      |_|_|_|_|_|_|_|_|    row n...
+             *
+             */
+
+            // Initialize the register V[15] to 0.
+            // This register is set to 1 only if a pixel is turned from on to off (a collision occurs)
+            chip8->V[15] = 0;
+            
+            // Iterate through the rows of the sprite.
+            for (int yline = 0; yline < N; yline++){
+                if (y + yline >= CHIP8_HIGHT) break;
+                unsigned char row = chip8->memory[chip8->I + yline];
+                // Iterate on every bit
+                for (int xline = 0; xline < 8; xline++){
+                    // 0x80 = 1000 0000, 
+                    // Extract the bit value
+                    unsigned char bit_value = row & (0x80 >> xline);
+                    // if the value of the bit != 0
+                    if (bit_value != 0){
+                        // Calculate the 1D array index for this pixel.
+                        unsigned int bit_index = ((x + xline) % CHIP8_WIDTH) + ((y + yline) * CHIP8_WIDTH);
+                        // (to delete)? unsigned int bit_index = (x + xline) + (y + yline) * CHIP8_WIDTH; 
+
+                        // if the old value was 1, a collision occurs
+                        if (chip8->gfx[bit_index] == 1){
+                            chip8->V[15] = 1;
+                        }
+                        // XOR with 1 flips the pixel (turning it off if it was on, or on if it was off)
+                        chip8->gfx[bit_index] ^= 1;
+                    }
+                }
+            }
+
+            // Set the draw flag to 1.
+            chip8->draw = 1;
+
         } break;
 
         case 0xE: {
