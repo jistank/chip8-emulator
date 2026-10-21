@@ -521,9 +521,150 @@ void chip8ExecuteOpcode(Chip8 *chip8, short opcode){
 
         } break;
 
-
         case 0xF: {
+
+            // FX07, Sets VX to the value of the delay timer
+            if ((opcode & 0x00FF) == 0x0007){
+                chip8->V[X] = chip8->delay_timer;
+            }
+
+            /*
+             * FX0A, A key press is awaited, and then stored in VX
+             * (blocking operation, all instruction halted until next key event,
+             *  delay and sound timers should continue processing)
+             */
+            else if ((opcode & 0x00FF) == 0x000A){
+                unsigned char key_press = 0;
+                // cycle through the keyboard
+                for (int i = 0; i <= 15; i++){
+                    // if key[i] is true (!= 0)
+                    if (chip8->key[i] != 0){
+                        // store the index of that key in V[X]
+                        chip8->V[X] = i;
+                        key_press = 1;
+                        break;
+                    }
+                }
+                // continue with the next instruction
+
+                /* 
+                 * If any key hasn't been pressed, decrement the program counter by 2
+                 * (This means we re-execute the current instruction, that is that one
+                 *  we're implementing in this moment)
+                 *  This because we incremented it in chip8Step() before execute this
+                 *  funcion. To execute the same opcode we have to decrement it.
+                 */
+                if (!key_press){
+                    chip8->pc -= 2;
+                    return;
+                }
+            }
+
+            // FX15, Sets the delay timer to VX
+            else if ((opcode & 0x00FF) == 0x0015){
+                chip8->delay_timer = chip8->V[X];
+            }
+
+            // FX18, Sets the sound timer to VX
+            else if ((opcode & 0x00FF) == 0x0018){
+                chip8->sound_timer = chip8->V[X];
+            }
+
+            // FX1E, Adds VX to I. VF is not affected
+            else if ((opcode & 0x00FF) == 0x001E){
+                chip8->I += chip8->V[X];
+            }
+
+            /*
+             * FX29, Sets I to the location of the sprite for the character in VX
+             * (only consider the lowest nibble).
+             * Characters 0-F (in hexadecimal) are represented by a 4x5 font.
+             */
+            else if ((opcode & 0x00FF) == 0x0029){
+
+                /*
+                 * Sprite data is represented by a row of CHIP8_FONTSET
+                 * The sprite data used to render that digit occupies 5 bytes
+                 *
+                 * 0: we load the fontset starting by the address 0
+                 * (chip8->V[X]): the index of the row 
+                 * (chip8->V[X] & 0x0F): extracts the last 4 bits (from 0 to 15)
+                 * *0x5: once the row is found we multiply by 5
+                 *       (because each row is 5bytes long)
+                 */
+                chip8->I = 0 + (chip8->V[X] & 0x0F) * 0x5;
+            }
+            
+            /*
+             * FX33, Stores the binary-coded decimal representation of VX,
+             * with the hundreds digit in memory at location in I,
+             * the tens digit at location I+1, and the ones digit at location I+2
+             */ 
+            else if ((opcode & 0x00FF) == 0x0033){
+                unsigned char value = chip8->V[X];
+
+                /*
+                 * Convert the value in decimal:
+                 * ex: we have 143
+                 *     143 / 100 = 1
+                 *     143 % 100 = 43, 43 / 10 = 4
+                 *     143 % 100 = 43 % 10 = 3
+                 */
+                chip8->memory[chip8->I + 0] = value / 100;
+                chip8->memory[chip8->I + 1] = (value % 100) / 10;
+                chip8->memory[chip8->I + 2] = (value % 100) % 10;
+            }
+
+            /*
+             * FX55, Stores from V0 to VX (including VX) in memory, starting at address I.
+             * The offset from I is increased by 1 for each value written,
+             * but I itself is left unmodified
+             */
+            else if ((opcode & 0x00FF) == 0x0055){
+
+                // Ensure memory access is within bounds
+                if (chip8->I + X >= 4096){
+                    LOG_ERROR("Memory access out of bounds in FX55\n");
+                    exit(EXIT_FAILURE);
+                }
+
+                for (unsigned char i = 0; i <= X; i++){
+                    // Copy the value from the register to the memory
+                    chip8->memory[chip8->I + i] = chip8->V[i];
+                }
+
+                // quirk
+                chip8->I = chip8->I + X + 1;
+            }
+
+            /*
+             * FX65, Fills from V0 to VX (including VX) with values from memory, starting at address I.
+             * The offset from I is increased by 1 for each value read, but I itself is left unmodified
+             */
+            else if ((opcode & 0x00FF) == 0x0065){
+
+                // Ensure memory access is within bounds
+                if (chip8->I + X >= 4096){
+                    LOG_ERROR("Memory access out of bounds in FX65\n");
+                    exit(EXIT_FAILURE);
+                }
+
+                for (unsigned char i = 0; i <= X; i++){
+                    // Read from the memory and writing on the register
+                    chip8->V[i] = chip8->memory[chip8->I + i];
+                }
+
+                // quirk
+                chip8->I = chip8->I + X + 1;
+            }
+
+            else {
+                LOG_ERROR_ARGS("Unknown opcode: '0x%x'\n", opcode);
+                exit(EXIT_FAILURE);
+            }
+
         } break;
+
         default:{
             LOG_ERROR("Unreachable default case in chip8ExecuteOpcode");
             exit(EXIT_FAILURE);
