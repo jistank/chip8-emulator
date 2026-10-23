@@ -11,7 +11,7 @@
 #define CHIP8_H_
 
 #define CHIP8_WIDTH 64
-#define CHIP8_HIGHT 32
+#define CHIP8_HEIGHT 32
 
 typedef struct Chip8 {
 
@@ -49,7 +49,7 @@ typedef struct Chip8 {
      * Frame buffer containing pixel data to drow on the schreen (contains totally 2048px)
      * The graphics is black and white
      */
-    unsigned char gfx[CHIP8_WIDTH * CHIP8_HIGHT];
+    unsigned char gfx[CHIP8_WIDTH * CHIP8_HEIGHT];
     
     // binary flag to draw or not, this to know if the schreen should be updated
     unsigned char draw;
@@ -74,6 +74,15 @@ typedef struct Chip8 {
 
     // The CHIP-8 includes a 16-key hex keypad (0x0–0xF). An array stores each key's current state.
     unsigned char key[16];
+
+    /*
+     * Bitmask of active quirks (for CHIP8_QUIRK).
+     * We are not interested in the number itself,
+     * but to the sequence of bit in memory which represented with
+     * Every bit in this sequece has a semantic value, so every bit
+     * represent if a particular quirk is activated or not
+     */
+    unsigned int quirks;
 
 
 } Chip8;
@@ -102,6 +111,30 @@ typedef enum {
     CHIP8_KEY_C,
     CHIP8_KEY_V 
 } CHIP8_KEY;
+
+/*
+ * Becouse of the introduction of different chip8 throught the year,
+ * we will use a bitmask approach to know if the following quirk is enabled or not
+ * This enum is used to chip8ExecuteOpcode()
+ *
+ * We use 0x1 because in binary is:    1, so QUIRK_SHIFT, is the quirk in the first position
+ *        0x2 because in binary is:   10, QUIRK_LOAD_STORE, is the quirk in the second position
+ *        0x4 because in binary is:  100, QUIRK_JUMP_REL, is the quirk in the third position
+ *        0x8 because in binary is: 1000, QUIRK_VF_RESET, is the quirk in the fourth position
+ */
+typedef enum {
+    // Modifies the opcodes: 8XY6, 8XYE
+    QUIRK_SHIFT = 0x1,
+
+    // Modifies the opcodes: FX55, FX65
+    QUIRK_LOAD_STORE = 0x2,
+
+    // Modifies the opcodes: BNNN 
+    QUIRK_JUMP_REL = 0x4,
+    
+    // Modifies the opcodes: 8XY1, 8XY2, 8XY3
+    QUIRK_VF_RESET = 0x8
+} CHIP8_QUIRK;
 
 /**
  * CHIP-8 opcodes are exactly 2 bytes long and stored in big-endian format

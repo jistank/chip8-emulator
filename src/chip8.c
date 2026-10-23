@@ -59,6 +59,9 @@ Chip8* chip8Init(void){
     chip8->running = 1; // at the beginning the chip8 is running
     chip8->pc = 0x200;  // (program counter) the address where we start reading our program is 0x200
 
+    // Bitmask of: QUIRK_SHIFT or QUIRK_LOAD_STORE: 000...0011
+    chip8->quirks = QUIRK_SHIFT | QUIRK_LOAD_STORE;
+
     /*
      * Initialize the PRNG (Pseudo-Random Number Generator) with the current time
      * This is required for the CHIP-8 CXNN instruction, which generates a random number
@@ -198,13 +201,17 @@ void chip8ExecuteOpcode(Chip8 *chip8, short opcode){
     unsigned char NN  = opcode & 0x00FF;
     unsigned char NNN = opcode & 0x0FFF;
     
-    // Cast void to disable warning by compiler,
-    // otherwise it complains about unused variables
-    (void)X;
-    (void)Y;
-    (void)N;
-    (void)NN;
-    (void)NNN;
+    // Ensure X is a valid register index (0-15) before accessing the array.
+    if (X >= 16){
+        LOG_ERROR_ARGS("3XNN, invalid value for X: %d > 15", X);
+        exit(EXIT_FAILURE);
+    }
+
+    // Ensure Y is a valid register index (0-15) before accessing the array.
+    if (Y >= 16){
+        LOG_ERROR_ARGS("3XNN, invalid value for Y: %d > 15", Y);
+        exit(EXIT_FAILURE);
+    }
 
     // compile the program with DEBUG=1 (ex: make DEBUG=1) to see the debug log
     #ifdef DEBUG
@@ -221,7 +228,7 @@ void chip8ExecuteOpcode(Chip8 *chip8, short opcode){
             // if the last digit is 0 we execute this instruction
             if ((opcode & 0x000F) == 0x0000){
                  // Clear the graphics buffer by setting all bytes to 0 (2048 bytes)
-                memset(chip8->gfx, 0, CHIP8_WIDTH*CHIP8_HIGHT);
+                memset(chip8->gfx, 0, CHIP8_WIDTH*CHIP8_HEIGHT);
             }
 
             // 00EE, Return from a subroutine
@@ -273,11 +280,7 @@ void chip8ExecuteOpcode(Chip8 *chip8, short opcode){
         // 3XNN, skip the following instruction if the value of register VX equals NN
         case 0x3: {
 
-            // Ensure X is a valid register index (0-15) before accessing the array.
-            if (X >= 16){
-                LOG_ERROR_ARGS("3XNN, invalid value for X: %d > 15", X);
-                exit(EXIT_FAILURE);
-            }
+
 
             // If the register value equals NN, skip the next 2-byte instruction.
             // (because every instruction occupies 2 byte)
@@ -288,10 +291,6 @@ void chip8ExecuteOpcode(Chip8 *chip8, short opcode){
 
         // 4XNN, skip the following instruction if the value of register VX is not equal to NN
         case 0x4: {
-            if (X >= 16){
-                LOG_ERROR_ARGS("4XNN, invalid value for X: %d > 15", X);
-                exit(EXIT_FAILURE);
-            }
 
             if (chip8->V[X] != NN){
                 chip8->pc += 2;
@@ -300,15 +299,6 @@ void chip8ExecuteOpcode(Chip8 *chip8, short opcode){
 
         // 5XY0, skip the following instruction if the value of register VX is equal to the value of register VY
         case 0x5: {
-            if (X >= 16){
-                LOG_ERROR_ARGS("5XY0, invalid value for X: %d > 15", X);
-                exit(EXIT_FAILURE);
-            }
-
-            if (Y >= 16){
-                LOG_ERROR_ARGS("5XY0, invalid value for Y: %d > 15", Y);
-                exit(EXIT_FAILURE);
-            }
 
             if (chip8->V[X] == chip8->V[Y]){
                 chip8->pc += 2;
@@ -317,33 +307,15 @@ void chip8ExecuteOpcode(Chip8 *chip8, short opcode){
 
         // 6XNN, store number NN in register VX
         case 0x6: {
-            if (X >= 16){
-                LOG_ERROR_ARGS("6XNN, invalid value for X: %d > 15", X);
-                exit(EXIT_FAILURE);
-            }
             chip8->V[X] = NN;
         } break;
 
         // 7XNN, Add the value NN to register VX
         case 0x7: {
-             if (X >= 16){
-                LOG_ERROR_ARGS("7XNN, invalid value for X: %d > 15", X);
-                exit(EXIT_FAILURE);
-            }
             chip8->V[X] += NN;
         } break;
 
         case 0x8: {
-             if (X >= 16){
-                // *: represents all instructions with the 0x8 prefix
-                LOG_ERROR_ARGS("0x8*, invalid value for X: %d > 15", X);
-                exit(EXIT_FAILURE);
-            }
-                
-             if (Y >= 16){
-                LOG_ERROR_ARGS("0x8*, invalid value for Y: %d > 15", Y);
-                exit(EXIT_FAILURE);
-            }
 
             // 8XY0, Store the value of register VY in register VX
             if ((opcode & 0x000F) == 0x0000){
@@ -353,16 +325,25 @@ void chip8ExecuteOpcode(Chip8 *chip8, short opcode){
             // 8XY1, Set VX to VX OR VY
             else if ((opcode & 0x000F) == 0x0001) {
                 chip8->V[X] |= chip8->V[Y];      
+                if (!(chip8->quirks & QUIRK_VF_RESET)){
+                    chip8->V[15] = 0;
+                }
             }
 
             // 8XY2, Set VX to VX AND VY
             else if ((opcode & 0x000F) == 0x0002) {
                 chip8->V[X] &= chip8->V[Y];            
+                if (!(chip8->quirks & QUIRK_VF_RESET)){
+                    chip8->V[15] = 0;
+                }
             }
 
             // 8XY3, Set VX to VX XOR VY
             else if ((opcode & 0x000F) == 0x0003) {
                 chip8->V[X] ^= chip8->V[Y];        
+                if (!(chip8->quirks & QUIRK_VF_RESET)){
+                    chip8->V[15] = 0;
+                }
             }
 
             /* 8XY4
@@ -409,11 +390,23 @@ void chip8ExecuteOpcode(Chip8 *chip8, short opcode){
              * shift. VY is unchanged
              */
             else if ((opcode & 0x000F) == 0x0006) {
-              // TODO: add quirk support
+
+              /*
+               * QUIRK SUPPORT
+               * Originally before shifting right we copy VY
+               * to VX, without the quirk we perform the shift on VX
+               */
+
+                // the first bit on the right is 0 (off) or 1 (on)?
+                // if it isnt' actived
+                if (!(chip8->quirks & QUIRK_SHIFT)){
+                    // we do the shift on VX value instead of VY
+                    chip8->V[X] = chip8->V[Y];
+                } 
               
               // lsb stands for: least significant bit
-              unsigned char lsb = chip8->V[Y] & 0x1;
-              chip8->V[X] = chip8->V[Y] >> 1;
+              unsigned char lsb = chip8->V[X] & 0x1;
+              chip8->V[X] >>= 1;
               chip8->V[15] = lsb;
             } 
 
@@ -434,7 +427,12 @@ void chip8ExecuteOpcode(Chip8 *chip8, short opcode){
              *    VY is unchanged
             */
             else if ((opcode & 0x000F) == 0x000E) {
-              // TODO: add quirk support
+
+                // QUIRK SUPPORT
+                if (!(chip8->quirks & QUIRK_SHIFT)){
+                    // we do the shift on VX value instead of VY
+                    chip8->V[X] = chip8->V[Y];
+                } 
               
               unsigned char msb = (chip8->V[Y] & 0x80) >> 7;
               chip8->V[X] = chip8->V[Y] << 1;
@@ -461,9 +459,19 @@ void chip8ExecuteOpcode(Chip8 *chip8, short opcode){
             chip8->I = NNN;
         } break;
 
-        // Jumps to the address NNN plus V0
+        // BNNN: Jumps to the address NNN + V0
         case 0xB: {
-            chip8->pc = NNN + chip8->V[0];
+
+        /*
+         * This quirk changes the way we compute the offset.
+         * If the quirk is activated the offset is taken from VX,
+         * otherwise from V0.
+         * Regardless of the quirk, the offset is added to NNN
+         */ 
+        unsigned short offset = chip8->quirks & QUIRK_JUMP_REL ? chip8->V[X] : chip8->V[0];
+        
+        // Regardless of the quirk, the offset is added to NNN
+        chip8->pc = NNN + offset;
         } break;
 
         /* 
@@ -503,7 +511,7 @@ void chip8ExecuteOpcode(Chip8 *chip8, short opcode){
              * Each row consists of 8 bits, and the sprite has a variable number of rows
              * The number of rows depends on N which is given by the opcode
              * (the number of columns is constant)
-             * The position (x, y) are given by the opcode as well.
+             * The position (x, y) are given by register VX and VY.
              *
              * SPRITE VISUALIZATION:
              *      |_|_|_|_|_|_|_|_|    row1 = (N=1)
@@ -521,7 +529,7 @@ void chip8ExecuteOpcode(Chip8 *chip8, short opcode){
             
             // Iterate through the rows of the sprite.
             for (int yline = 0; yline < N; yline++){
-                if (y + yline >= CHIP8_HIGHT) break;
+                if (y + yline >= CHIP8_HEIGHT) break;
                 unsigned char row = chip8->memory[chip8->I + yline];
                 // Iterate on every bit
                 for (int xline = 0; xline < 8; xline++){
@@ -692,8 +700,13 @@ void chip8ExecuteOpcode(Chip8 *chip8, short opcode){
                     chip8->memory[chip8->I + i] = chip8->V[i];
                 }
 
-                // quirk
-                chip8->I = chip8->I + X + 1;
+                /*
+                 * QUIRK SUPPORT
+                 * if the quirk is active we don't need to update the register I,
+                 * otherwise we update with the original behavior
+                 */
+                if (!(chip8->quirks & QUIRK_LOAD_STORE))
+                    chip8->I = chip8->I + X + 1;
             }
 
             /*
@@ -713,8 +726,13 @@ void chip8ExecuteOpcode(Chip8 *chip8, short opcode){
                     chip8->V[i] = chip8->memory[chip8->I + i];
                 }
 
-                // quirk
-                chip8->I = chip8->I + X + 1;
+                /*
+                 * QUIRK SUPPORT
+                 * if the quirk is active we don't need to update the register I,
+                 * otherwise we update with the original behavior
+                 */
+                if (!(chip8->quirks & QUIRK_LOAD_STORE))
+                    chip8->I = chip8->I + X + 1;
             }
 
             else {
