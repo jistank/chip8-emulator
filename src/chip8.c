@@ -373,12 +373,12 @@ void chip8ExecuteOpcode(Chip8 *chip8, short opcode){
               // In all other cases, no borrow occurs, and we can set VF to 1.
               unsigned char notBorrow = chip8->V[X] >= chip8->V[Y] ? 1 : 0;
 
-                /*
-                 * Be careful with the order of operations here.
-                 * First, we compute the flag, then we update VX,
-                 * and we finally assign the flag.
-                 * This correctly handles the case where X = 15
-                 */ 
+              /*
+               * Be careful with the order of operations.
+               * First, we compute the flag, then we update VX,
+               * and we finally assign the flag.
+               * This correctly handles the case where X = 15
+               */ 
               chip8->V[X] = chip8->V[X] - chip8->V[Y];
               chip8->V[15] = notBorrow;
             }
