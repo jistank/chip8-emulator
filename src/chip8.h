@@ -67,7 +67,7 @@ typedef struct Chip8 {
      * It serves to preserve the current execution address prior to a jump operation
      * Whenever a jump or subroutine call is executed, the program counter must be pushed onto the stack before continuing
      */
-    unsigned char stack[16];
+    unsigned short stack[16];
 
     // Stack pointer that always points to the current top level of the stack
     unsigned short sp;
@@ -94,23 +94,29 @@ typedef struct Chip8 {
  * (CHIP8_KEY_2 will be 1, etc)
  */
 typedef enum {
-    CHIP8_KEY_1 = 0,
-    CHIP8_KEY_2,
-    CHIP8_KEY_3,
-    CHIP8_KEY_4,
-    CHIP8_KEY_Q,
-    CHIP8_KEY_W,
-    CHIP8_KEY_E,
-    CHIP8_KEY_R,
-    CHIP8_KEY_A,
-    CHIP8_KEY_S,
-    CHIP8_KEY_D,
-    CHIP8_KEY_F,
-    CHIP8_KEY_Z,
-    CHIP8_KEY_X,
-    CHIP8_KEY_C,
-    CHIP8_KEY_V 
+    CHIP8_KEY_1 = 0x01,
+    CHIP8_KEY_2 = 0x02,
+    CHIP8_KEY_3 = 0x03,
+    CHIP8_KEY_4 = 0x0C,
+    CHIP8_KEY_Q = 0x04,
+    CHIP8_KEY_W = 0x05,
+    CHIP8_KEY_E = 0x06,
+    CHIP8_KEY_R = 0x0D,
+    CHIP8_KEY_A = 0x07,
+    CHIP8_KEY_S = 0x08,
+    CHIP8_KEY_D = 0x09,
+    CHIP8_KEY_F = 0x0E,
+    CHIP8_KEY_Z = 0x0A,
+    CHIP8_KEY_X = 0x00,
+    CHIP8_KEY_C = 0x0B,
+    CHIP8_KEY_V = 0x0F,
+    CHIP8_KEY_UNDEFINED = 0x10
 } CHIP8_KEY;
+
+typedef enum CHIP8_KEY_VALUE{
+    CHIP8_KEY_UP = 0,
+    CHIP8_KEY_DOWN = 1
+} CHIP8_KEY_VALUE;
 
 /*
  * Becouse of the introduction of different chip8 throught the year,
@@ -207,10 +213,12 @@ void chip8Destroy(Chip8*);
 // Load the program
 void chip8LoadProgram(Chip8*, char*);
 
+void chip8UpdateTimers(Chip8* chip8);
+
 void chip8Step(Chip8*);
 
 // Execute the opcode
-void chip8ExecuteOpcode(Chip8*, short);
+void chip8ExecuteOpcode(Chip8*, unsigned short);
 
 
 #endif // CHIP8_H_

@@ -59,8 +59,9 @@ Chip8* chip8Init(void){
     chip8->running = 1; // at the beginning the chip8 is running
     chip8->pc = 0x200;  // (program counter) the address where we start reading our program is 0x200
 
-    // Bitmask of: QUIRK_SHIFT or QUIRK_LOAD_STORE: 000...0011
-    chip8->quirks = QUIRK_SHIFT | QUIRK_LOAD_STORE;
+    // Classic CHIP-8 behavior: shift operates on VX (Space Invaders relies on this).
+    // Only the LOAD/STORE quirk is left enabled.
+    chip8->quirks = QUIRK_LOAD_STORE;
 
     /*
      * Initialize the PRNG (Pseudo-Random Number Generator) with the current time
@@ -150,6 +151,21 @@ void chip8LoadProgram(Chip8 *chip8, char* program){
     fclose(f);
 }
 
+/*
+ * CHIP-8 Timers:
+ * Both the Delay Timer (for timing events) and Sound Timer (triggers a beep while > 0)
+ * count down at a fixed rate of 60 Hz, independent of CPU execution speed.
+ * Countdown stops at 0 and remains there until explicitly reset by the program.
+ */
+void chip8UpdateTimers(Chip8 *chip8){
+
+    if (chip8->delay_timer > 0)
+        chip8->delay_timer -= 1;
+
+    if (chip8->sound_timer > 0)
+        chip8->sound_timer -= 1;
+}
+
 /* 
  * This function handles the "Fetch" and "PC advancement" phases of the 
  * Fetch-Decode-Execute cycle.
@@ -189,7 +205,7 @@ void chip8Step(Chip8 *chip8){
 }
 
 // Decodes and executes a given 16-bit CHIP-8 opcode.
-void chip8ExecuteOpcode(Chip8 *chip8, short opcode){
+void chip8ExecuteOpcode(Chip8 *chip8, unsigned short opcode){
 
     /*
      * DECODE: Extract the components of the 16-bit opcode using bitwise AND
@@ -199,7 +215,7 @@ void chip8ExecuteOpcode(Chip8 *chip8, short opcode){
     unsigned char Y   = (opcode & 0x00F0) >> 4;
     unsigned char N   = opcode & 0x000F;
     unsigned char NN  = opcode & 0x00FF;
-    unsigned char NNN = opcode & 0x0FFF;
+    unsigned short NNN = opcode & 0x0FFF;
     
     // Ensure X is a valid register index (0-15) before accessing the array.
     if (X >= 16){
@@ -222,7 +238,7 @@ void chip8ExecuteOpcode(Chip8 *chip8, short opcode){
      * EXECUTE: Dispatch to the correct instruction handler based on the most 
      * significant 4 bits (the first hexadecimal digit) of the opcode.
      */
-    switch ((opcode & 0x0F00) >> 12){
+    switch ((opcode & 0xF000) >> 12){
         case 0x0: {
             // 00E0, clear the screen
             // if the last digit is 0 we execute this instruction
@@ -233,11 +249,11 @@ void chip8ExecuteOpcode(Chip8 *chip8, short opcode){
 
             // 00EE, Return from a subroutine
             else if ((opcode & 0x00FF) == 0x00EE){
-                // Decrement SP before reading the stack, to not read the wrong address.
-                chip8->sp--;
+
                 // Restore the program counter to the return address previously 
                 // saved at the top of the stack by the 2NNN instruction.
-                chip8->pc = chip8->stack[chip8->sp];
+                chip8->pc = chip8->stack[chip8->sp - 1];
+                chip8->sp--;
 
             /*
              * 0NNN: Call machine code routine at address NNN.
@@ -390,25 +406,19 @@ void chip8ExecuteOpcode(Chip8 *chip8, short opcode){
              * shift. VY is unchanged
              */
             else if ((opcode & 0x000F) == 0x0006) {
-
-              /*
-               * QUIRK SUPPORT
-               * Originally before shifting right we copy VY
-               * to VX, without the quirk we perform the shift on VX
-               */
-
-                // the first bit on the right is 0 (off) or 1 (on)?
-                // if it isnt' actived
-                if (!(chip8->quirks & QUIRK_SHIFT)){
-                    // we do the shift on VX value instead of VY
-                    chip8->V[X] = chip8->V[Y];
-                } 
-              
-              // lsb stands for: least significant bit
-              unsigned char lsb = chip8->V[X] & 0x1;
-              chip8->V[X] >>= 1;
-              chip8->V[15] = lsb;
-            } 
+                unsigned char lsb;
+                
+                if (chip8->quirks & QUIRK_SHIFT) {
+                    // Quirk ON: Shift VY and store in VX, VF = LSB of VY
+                    lsb = chip8->V[Y] & 0x1;
+                    chip8->V[X] = chip8->V[Y] >> 1;
+                } else {
+                    // Quirk OFF (Original): Shift VX in place, VF = LSB of VX
+                    lsb = chip8->V[X] & 0x1;
+                    chip8->V[X] >>= 1;
+                }
+                chip8->V[15] = lsb;
+            }
 
             /* 8XY7
              * 1. Set register VX to the value of VY minus VX
@@ -427,16 +437,18 @@ void chip8ExecuteOpcode(Chip8 *chip8, short opcode){
              *    VY is unchanged
             */
             else if ((opcode & 0x000F) == 0x000E) {
-
-                // QUIRK SUPPORT
-                if (!(chip8->quirks & QUIRK_SHIFT)){
-                    // we do the shift on VX value instead of VY
-                    chip8->V[X] = chip8->V[Y];
-                } 
-              
-              unsigned char msb = (chip8->V[Y] & 0x80) >> 7;
-              chip8->V[X] = chip8->V[Y] << 1;
-              chip8->V[15] = msb;
+                unsigned char msb;
+                
+                if (chip8->quirks & QUIRK_SHIFT) {
+                    // Quirk ON: Shift VY and store in VX, VF = MSB of VY
+                    msb = (chip8->V[Y] & 0x80) >> 7;
+                    chip8->V[X] = chip8->V[Y] << 1;
+                } else {
+                    // Quirk OFF (Original): Shift VX in place, VF = MSB of VX
+                    msb = (chip8->V[X] & 0x80) >> 7;
+                    chip8->V[X] <<= 1;
+                }
+                chip8->V[15] = msb;
             }        
 
             else {
@@ -540,7 +552,6 @@ void chip8ExecuteOpcode(Chip8 *chip8, short opcode){
                     if (bit_value != 0){
                         // Calculate the 1D array index for this pixel.
                         unsigned int bit_index = ((x + xline) % CHIP8_WIDTH) + ((y + yline) * CHIP8_WIDTH);
-                        // (to delete)? unsigned int bit_index = (x + xline) + (y + yline) * CHIP8_WIDTH; 
 
                         // if the old value was 1, a collision occurs
                         if (chip8->gfx[bit_index] == 1){
@@ -565,7 +576,7 @@ void chip8ExecuteOpcode(Chip8 *chip8, short opcode){
                 if ((opcode & 0x00FF) == 0x009E){
                     // taking the last 4-bits of the register V[X]
                     unsigned char key_index = chip8->V[X] & 0x0F;
-                    if (chip8->key[key_index] == 1){
+                    if (chip8->key[key_index] == CHIP8_KEY_DOWN){
                         chip8->pc += 2;
                     }
                 }
@@ -576,7 +587,7 @@ void chip8ExecuteOpcode(Chip8 *chip8, short opcode){
                  */
                 else if ((opcode & 0x00FF) == 0x00A1){
                     unsigned char key_index = chip8->V[X] & 0x0F;
-                    if (chip8->key[key_index] == 0){
+                    if (chip8->key[key_index] == CHIP8_KEY_UP){
                         chip8->pc += 2;
                     }
                 }
@@ -605,7 +616,7 @@ void chip8ExecuteOpcode(Chip8 *chip8, short opcode){
                 // cycle through the keyboard
                 for (int i = 0; i <= 15; i++){
                     // if key[i] is true (!= 0)
-                    if (chip8->key[i] != 0){
+                    if (chip8->key[i] == CHIP8_KEY_DOWN){
                         // store the index of that key in V[X]
                         chip8->V[X] = i;
                         key_press = 1;
