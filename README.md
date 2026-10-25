@@ -38,6 +38,28 @@ Example:
 ```bash
 ./chip8 ../roms/PONG.ch8
 ```
+## Controls
+
+### Pong
+| Key | Action |
+|-----|--------|
+| `1` | Move up |
+| `q` | Move down |
+
+### Tetris
+| Key | Action |
+|-----|--------|
+| `a` | Move down faster |
+| `e` | Move right |
+| `w` | Move left |
+| `q` | Rotate |
+
+### Space Invaders
+| Key | Action |
+|-----|--------|
+| `e` | Move right |
+| `w` | Move left |
+| `q` | Shoot |
 
 ## Technical Details
 
