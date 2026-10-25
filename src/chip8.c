@@ -563,7 +563,7 @@ void chip8ExecuteOpcode(Chip8 *chip8, unsigned short opcode){
                 }
             }
 
-            // Set the draw flag to 1.
+            // Set the draw flag to 1
             chip8->draw = 1;
 
         } break;

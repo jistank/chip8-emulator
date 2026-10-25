@@ -138,7 +138,7 @@ void audio_callback(void* userdata, Uint8* stream, int len) {
        * Here we consider the total samples in one cycle and we divide
        * it by two, since in a square wave is "high" for half the time
        * and "low" for half the time.
-       * (sample frequency / pitch frequency) * (1/2) = samples per cycle / (frequency * 2)
+       * (sample frequency / pitch frequency) * (1/2) = samples per cycle/(frequency * 2)
        */
       int half_period = 44100 / (FREQUENCY * 2);
 
@@ -230,8 +230,7 @@ int main(int argc, char **argv){
     char *rom = argv[1];
     printf("ROM selected: '%s'\n", rom);
     
-    // --- Initialization
-
+    // INITIALIZATION
     SDL_Window *window;
     SDL_Renderer *renderer;
     initSDL(&window, &renderer);
@@ -260,10 +259,6 @@ int main(int argc, char **argv){
     // The audio is setted as paused by default
     SDL_PauseAudio(0);
 
-
-
-
-
     /*
      * EMULATION lOOP
      * Emulation Loop Timing:
@@ -286,9 +281,6 @@ int main(int argc, char **argv){
 
         chip8UpdateTimers(chip8);
 
-
-        // sound
-
         if (chip8->draw == 1){
             drawScreen(chip8, renderer);
             chip8->draw = 0;
@@ -300,7 +292,7 @@ int main(int argc, char **argv){
         }
     }
 
-    // --- Cleanup
+    // CLEANUP
     chip8Destroy(chip8);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
