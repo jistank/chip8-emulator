@@ -28,18 +28,18 @@ sudo pacman -S sdl2
 
 ## Usage
 
-Go in src and digit: 
+To build the executable, go in src/ and digit: 
 ```bash
 make
 ```
 
-Run the emulator with a CHIP-8 ROM file:
+Run the emulator with a CHIP-8 ROM file (you can find different ROMs in the roms/ folder):
 
 ```bash
 ./chip8 <path-to-rom>
 ```
 
-Example:
+Example in a single command:
 ```bash
 make && ./chip8 ../roms/Invaders.c8
 ```
