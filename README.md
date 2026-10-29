@@ -28,6 +28,11 @@ sudo pacman -S sdl2
 
 ## Usage
 
+Go in src and digit: 
+```bash
+make
+```
+
 Run the emulator with a CHIP-8 ROM file:
 
 ```bash
@@ -36,7 +41,7 @@ Run the emulator with a CHIP-8 ROM file:
 
 Example:
 ```bash
-./chip8 ../roms/PONG.ch8
+make && ./chip8 ../roms/Invaders.c8
 ```
 ## Controls
 
